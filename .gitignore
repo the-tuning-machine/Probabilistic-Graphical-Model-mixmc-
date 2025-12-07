@@ -1,0 +1,9 @@
+old/
+examples/
+complémentaires/
+.claude/
+__pycache__/
+results/
+
+*.pt
+*.pdf

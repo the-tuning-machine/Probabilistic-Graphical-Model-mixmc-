@@ -1,0 +1,320 @@
+Donner des notations plus modernes
+	Pour les algo
+	Pour la représentation
+Preuves différentes
+	Un truc un peu plus rigoureux pour la Dirichlet
+Nouvelles données
+	On peut faire en multi-dimensionnel
+Nouvel (ou nouveaux) algo
+	Diffusion
+	LLM
+	EM
+
+On a une distribution et on sait calculer le postérieur par rapport à la version conditionnée uniquement
+On veut sampler dans cette distribution des éléments
+
+
+Comme en Intro to Proba
+
+Petite mise en contexte (pourquoi c'est important)
+Reprendre les éléments principaux
+Faire d'autres visualisations
+Ecrire l'algo en pseudo code (car ce n'est pas fait de ce que je vois)
+Une autre application (donc ça ça sera probablement du deep donc je peux m'en occuper)
+
+Au delà du deep, si tu veux faire d'autres choses je pense que le sujet est super ouvert
+pousser la partie algèbre / analyse
+bench et implémentation
+étude de la complexité
+visualisation
+
+
+Alan : I) Intro
+	On dit de quoi on parle
+		Ce que l'on veut lorsque l'on veut faire de clustering et que l'on ne connait pas le nb de classes
+			On veut échantillonner les théta_i (les paramètres associés à chaque observation) ou les c_i et phi_c
+		Dirichlet Process permettent de résoudre ce pb
+	Surmonter les difficultés computationnelles liées aux lois a priori non conjuguées, qui rendent les intégrations analytiques nécessaires dans les approches Gibbs standard difficiles ou impossibles.
+	Pourquoi c'est important
+		En fait, le fait que le nombre de cluster soit aussi grand que voulu rend la méthode beaucoup plus puissante que du clustering. Car on peut approximer universellement de manière plus ou moins parcimonieuse (en fonction des valeurs de alpha) n'importe quelle distrib avec une Mixture de Gaussienne (ou d'un autre noyau avec certaines propriétés). Dire que l'on peut prendre un grand alpha éviter d'avoir des cluster et plus un fitting sur une distribution inconnue. En d'autres termes, si on a des données, on peut déterminer une (distribution de) loi(s) probable(s) qui les a générées.
+	On dit qui a fait quoi
+		Marlone : explication des différents algorithmes, écriture des pseudo code, littérature externe.
+		Alan : explication générale des processus de Dirichlet, création des modèles graphiques, implémentation, modèle de diffusion et tests sur de nouveaux datasets.
+		
+Marlone : II) Contexte Mathématique
+	On décrit le contexte
+		On donne un Proccessus de Dirichlet comme la limite d'une Dirichlet > équation (3) + définir c proprement comme un élément d'un set \mathcal{C} de cardinal K
+			Une Dirichlet à besoin de K paramètres pour être totalement décrite, à la limite on a besoin d'une distribution qui donne une quantité infinie de valeurs, mais le problème est qu'une distribution bien que donnant les proportions entre les évènements doit s'intégrer à 1, ce qui n'est pas une contrainte de la Dirichlet, le paramètre alpha correspond donc au scaling de cette distribution.
+			Dire que si X ~ DP(H, alpha) alors (X(B1), ..., X(Bn)) ~ Dir(alpha H(B1), ..., alpha H(Bn)) si les Bi sont une partition de l'univers
+			Dire que l'on aurait pu l'introduire également à l'aide du 'Stick-Breaking Process' étant beaucoup plus simple d'un point de vue computationnel, mais que l'intuition de la limite est plus intéressante pour réellement comprendre pourquoi ce processus est naturel lorsque l'on essaie d'avoir un prior sur un nombre infini (dénombre) de variables aléatoires
+				Il est très facile avec le Stick-Breaking Process de montrer que > donner la formule (2)
+			Donner la représentation graphique avec phi et c
+	Donner la définition du processus comme dans (1) comme une simplification plus directe mais donnant des variables latentes différentes
+		Dire qu'en fonction du modèle que l'on choisit cela va nous mener à différents algorithmes plus ou moins efficaces
+		Donner le modèle graphique pour cette version
+	look at and/or use other papers than the ones mentioned here
+		donner une ref pour le stick breaking process
+
+Marlone : III) Algorithmes du papier
+	Ecriture des algo pertinents de [1, 8] en pseudo code (en annexe)
+	Explication mathématique de pourquoi ça fonctionne
+Alan : IV) Diffusion
+	On pourrait faire un algo de type EM avec un prior sur le paramètres alpha
+	Cependant afin de mettre ce travail au goût du jour, on va tenter de faire de la diffusion 
+	(But)
+		1) Si on veut sampler alors on a aucune garantie > il faut générer des samples et s'entrainer avec la bonnne fréquence
+		2) Si on veut avoir une estimation de la moyenne alors on peut juste entraîner sur le modèle qui à généré les données
+		On veut une estimation de l'intégrale > à priori il faut générer beaucouuuup de samples avec les méthodes classiques, et trouver le MAP
+		On veut trouver le MAP > à priori il faut générer beaucouuuup de samples avec les méthodes classiques, et trouver le MAP
+		On veut une estimation en gaussiennes de notre distribution sur la distribution sur les paramètres
+	On va se concentrer sur 1 et sur 2
+	Archi
+		On a un modèle de diffusion qui va à chaque étape essayer de prédire le bruit
+		On conditionne par rapport aux observations et à t dans le second cas
+			token : n_sample
+			dim : d_obs
+		On génère des thetas probables
+		Outputs des theta
+			token : le nb de gaussiennes 
+				= nb de samples si on fait avec theta
+				= nb de phi_c utilisés
+			dim : d_obs + d_obs (d_obs + 1)//2 (si gaussienne) bref c'est la length de Distribution.parameters
+			mapping : n_sample > int token (on associe à chaque sample y_i, la catégorie phi_c_i)
+	La version avec theta est beaucoup plus simple
+	Data:
+		On choisit un nombre n de samples que l'on veut, alpha et G_0
+		Stick breaking algo pour déterminer G
+		On génère des theta_i
+		On génère des y_i
+		Notre but est de prédire les theta_i à partir des y_i
+	Loss :  il faut une loss qui va mapper sur les gaussiennes les plus proches
+	Entraînement (pratique)
+	On peut faire une version diffusion
+Alan : V) Tests sur des nouveaux dataset
+	Multi dimensionnel (en grande dimension approximer une intégrale prend du temps)
+	Dirichlet et Gaussien
+	Comment mesurer à quel point 1 donne une distribution crédible ?
+	Comment comparer avec les algo sur le temps d'autocorélation (nb de step * ms) ?
+	Mesurer à quel temps est nécessaire pour avoir le même niveau d'approximation du plus probable
+Alan : VI) Conclusion
+	Ce que l'on a présenté
+		discuss honestly and criticize the papers under study
+	Ce qui a fonctionné
+	Ce qui n'a pas fonctionné
+	Les futher works
+
+
+Code
+	Vérifier l'implémentation des algo
+	Pouvoir mettre de la data custom
+	Pouvoir mettre un kernel custom (il faut pouvoir donner G0 et F)
+	Faire des pré-implémentations des noyaux Gaussien (variance inconnues, moyenne inconnue, les 2 inconnus), Dirichlet, Exponentielle
+	Faire des check (pour les algorithmes qui ont besoin de prior conjugués pour fonctionner, il faut vérifier si on est dans les classes défines)
+	Cleanner le code (mettre dans de bons fichiers, ...)
+
+
+
+Demain
+	Turing
+		Rendre ça plus court
+	Mails aux profs
+	Faire la démo
+		Choisir ce que l'on veut démo
+			- des events externe ⇒ internet
+			- des coffee chat ⇒ linkedin + follow-up
+			- des cours ⇒ mooc/cours université
+			- event de l’université ⇒ career/ université
+			    - REX avec des Alumni
+			    - event avec des groupes/startup
+			    - sensibilisation à l’orientation
+			- des “live projects” en partenariat avec les entreprises ⇒ career + entreprises + pôle entreprenariat ?
+			- des stages ⇒ jobteaser
+			- rdv conseiller carrières ⇒ prendre rdv
+			- optimisation du cv ⇒ AI + internet (pour avoir accès à l’offre)
+			- simulation d'entretien ⇒ partenariat avec Brio
+			- une communauté d’Alumni facilement joignable ⇒ pas encore certain, mais peut-être qu’il ne faut pas réinventer la roue sur ce coût là, il existe déjà plein de réseaux existants
+			- une heatmap du marché pour déterminer
+			    - les compétences demandées
+			    - les startup trendy
+			On veut avoir une timeline de ce qu'il faut faire dans quel ordre
+				On peut collapse ce que l'on a déjà fait ou l'expand pour voir sa progression générale
+				Il y a des nodes qui sont stacké au début avec peu d'espacement entre eux (ce sont toutes les actions que je peux faire là mainteant)
+				Il y a ensuite les autres nodes qui sont plus espacés (ceux qui sont plannifiés dans le futur et que l'on ne peut pas faire maintenant
+			Lorsque l'on clique sur chaque node, on a une liste d'action que l'on peut faire
+				S'inscrire (plannifie un rendez-vous automatique avec Google Calendar (pour l'instant on ne l'implémente pas), change la couleur du node)
+				Optimiser son CV (lorsque l'on va postuler)
+				Simulation d'entretien (lorsque l'on va être en entretien)
+				Rendez-vous carrière (accepter/refuser)
+				Café Alumni : fiche descriptive de la personne à qui on va avoir affaire
+				Live projects : s'inscrire (on peut mettre un status en cours de validation si cela demande une approbation)
+				...					
+				
+			
+		Vibe Coder
+	Checker la démo dynamique
+		Faire en sorte de pouvoir exporter un rapport pdf
+	Postuler aux offres françaises
+		Kuytai
+	Douche
+	Répondre
+		LinkedIn
+
+SACEM : 
+	QAT, finetuning et LoRA sur un modèle multi-modal + déploiement sur AWS
+M6
+	Alerting X (Twiter) de la régie en temps réel des anomalies détectées par le public
+	Outil IA pour aider les juristes à remplir les matrices de contrats à partir d'échanges d'emails
+Ariago
+	Génération de contenu pédagogiques (carte et progression) à partir de documents multi modaux de cours
+Compas'Sup
+	Développement d'une solution ultra scalable d'IA agentique avec Langgraph
+	Fituning d'un LLM sur plus de 120k données privées, plus de 12 ans d'historique de données d'université
+Projet de recherche
+	Word2Mat: premier papier de recherche
+	SuperQuantization: binary Quantization-Aware Training explaining were we should quantize weigths in a Transformer architecture and to want degree
+	Opus: agentic pipeline evaluation (j'étais auteur principal et j'ai carry du début à la fin)
+Applications
+	Application éducative pour aider les étudiants à faire leur devoirs sans leur donner la réponse
+		A l'époque les IA multimodale n'existaient pas
+	AI GF
+		Une AI qui a une conversation naturelle et que se souvient des discutions et des "délires" avec de l'humour
+Open Source
+	Prompt industriel
+		J'étais frustré par les langchain
+		Pas encore terminé
+	Deepfrease: lib python pour accélérer l'entrainement de transformers
+	Torch ao
+		Implémentation du kernel triton de quantisation et de dequantisation de Deepseek pour la fp8 blockwise quantisation, avec les tests et les benchmarks
+
+
+Je fais en autodidacte des math, de la programmation et de l'IA depuis que j'ai 12, 14 et 16 ans respectivement. J'ai commencé sous TF quand j'étais plus jeune avec "Hands On Machine Learning" par Aurélien Géron et après je me suis mis à torch depuis quelques années maintenant et je suis beaucoup plus à l'aise dessus car ça fit beaucoup plus ma manière de penser. 
+
+J'ai touché à tous les bouts de l'IA : design des algo, implémentation, collecte de données, entrainement et deployement sur des serveurs 
+J'ai contribué à pytorch en implémentant la Deepseek blockwise fp8 quantization. J'ai mis en place le kernel triton de quantization, dequantisation, les tests et les benchmarks.
+
+Je suis un chercheur né, j'adore ce que je fais dans ma vie et ça me permet de travailler jour et nuit lorsque le projet me passionne.
+
+
+
+
+
+Faire la démo career plus
+	
+
+scpo.entrepreneurs
+Wifiincubation00
+
+
+AI qui permet de déterminer les startup les plus prometteuses (et ce qu'il faut bouger pour qu'elles soient bonnes)
+AI compagny : on se sert des meilleurs outils qui existent déjà et on automatise le tout
+AI Ads : on fait de l'IA
+Scientific research automation
+Imitation Game : on imite les logiciels qui existent déjà et on les remplace pour beaucoup plus cheap 
+Coding : faster, long context
+
+ASI : Bayes
+
+
+Je veux prédire le futur avec très peu d'information
+	J'ai besoin d'un prior
+		Sélectionner parmi les 3 choix
+	J'ai besoin de calculer le postérieur de manière efficace
+		Il faut un bon moteur d'inférence
+		Il faut un bon moteur de sélection des variables d'intérêt
+	J'ai besoin de trouver les bonnes variables
+		J'ai besoin d'un bon moteur d'exploration : on crée des transformations utiles de nos données
+		Comprendre comment traiter les variables continues
+	J'ai besoin d'un moteur moteur estimer ce que je ne sais pas
+	J'ai besoin d'un moteur pour choisir les actions à prendre
+		Il faut explorer
+		Il faut exploiter
+		Comment trouver un framework unifié pour maximiser le ROI
+
+Objectifs de la journée
+	Postuler aux offres que j'ai ouvertes
+	Mail aux profs que je veux drop
+
+Crypto
+	Il faut que notre stacking soit capé
+	Il faut que l'on gagne plus en proportion lorsque l'on a peu que lorsque l'on a beaucoup
+	Il faut que l'on soit incité à venir tôt (lorsqu'il n'y a pas beaucoup de gens)
+	Si on est capé en bas (on ne peut pas descendre en dessous d'un certain seuil), alors il faut que tous les items coûtent plus cher que ce seuil, sinon on peut en abuser
+	Comment faire en sorte que la banque ne puisse pas go bankrupt (si les gens veulent retirer leurs FIAT ou autres crypto)
+	Dans le disque de la possession, est-ce que la banque à une part ? Si oui, alors elle devra probablement être démesurée par rapport aux autres
+	Quelle Proof ? Proof of Work, Stake, Sentience, ...
+	Comment inciter les investisseurs à avoir de l'argent dès le départ ?
+	Faire en sorte que notre crypto puisse acceuillir autant de consciences que voulues
+	Faire en sorte de pouvoir supprimer des consciences (ceux qui font du multi account)
+	Comment garantir l'unicité ?
+	
+	
+Reproducible Research
+
+
+
+
+On regarde ce qu'il se passe pour N finit, on essaie d'avoir une "distrib" normalisée, mais en trichant
+
+Quizz sur ma connaissance sur les LLM
+	Ça ne marche
+	Ultra scalebook
+		mla
+		tensor parallel
+		...
+Entretien recruteur
+	
+Leet Code / Complexité
+	Connaitre les data structure sur le bout de doigts
+SIA
+	Quant Interview
+Code Review
+	Qu'est-ce que je peux faire pour améliorer
+AI Design
+	Worker
+	Queue
+Test de fit, par rapport au rôle
+	Low ego : dire quand j'ai merdé
+	Dire quand quelqu'un fait du bon travail
+	Ne pas s'accaparer le travail des gens
+	Qui avait tort : manager
+		Finir l'exo avec la meilleure version
+
+
+GDA
+	Permutahedron
+		2D et 3D
+	Alpha-divergence
+		Pénalité
+		Divergence
+		Divergence avec f et g
+		
+KL
+Chi2
+Cov
+
+Avancer sur la recherche avec Théo
+Rapport PGM
+	Bien restructurer: 15 min
+		On veut tout dans le dossier src/paper
+		Remonter la place de Distribution
+		On veut pouvoir avoir un graphique de l'évolution du temps (temps par itération * nb d'ité d'autocorr) pour avoir 2 samples iid en fonction de la dimension choisie
+		Clean tous les fichiers inutiles
+		Faire un fichier par algo
+	Faire un test avec une autre loi
+		Essayer sur des Dirichlet
+	Rédiger la partie expérience : 1h
+		Dire que l'on peut pense à générer des samples avec un processus de Diffusion
+			Donner l'équation que l'on voudrait
+			Dire que ce n'est pas fou car à priori pas beaucoup plus rapide car les calculs de MH sont très rapides même s'il en faut plusieurs pour avoir une bonne estimation
+			De plus on n'a aucune garantie dans notre cas
+		Cependant on peut aussi essayer de prédire directement les theta
+			Cela ne prédit pas le MAP
+			Mais cela devrait tendre vers le MAP à la limite lorsque le nb de samples tend vers inf
+			Donner l'architecture précise
+			Donner les paramètres d'entraînement
+			Donner les résultats et dire que cela était une mauvaise idée
+				Il peut il y avoir beaucoup de variance si on a peu de sample, si alpha est grand, si on est en grande dimension ou si les lois génératrices ont une grande variance (ce qui fait beaucoup de scénarii ou c'est dur)
+				Avec alpha petit alors cela revient à calculer une moyenne (et c'est clairement pas fou et très cher pour ce que c'est)
+				Dire que le temps de chauffe est en fait moins long que le temps d'entrainement
+				Dire qu'il nous faudrait une autre métrique
+			Donner le lien où l'on peut retrouver le code
