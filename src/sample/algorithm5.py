@@ -80,20 +80,23 @@ class Algorithm5(BaseAlgorithm):
             for j in range(len(phi)):
                 mask = (c == j)
                 if mask.sum() > 0:
-                    y_c = self.y[mask]
+                    y_c = self.y[mask]  # Shape (n_c, d)
                     n_c = len(y_c)
+                    # For diagonal covariance, update each dimension independently
                     prec_post = n_c / self.model.sigma2 + 1 / self.model.sigma02
-                    mu_post = (y_c.sum() / self.model.sigma2 + self.model.mu0 / self.model.sigma02) / prec_post
+                    mu_post = (y_c.sum(axis=0) / self.model.sigma2 + self.model.mu0 / self.model.sigma02) / prec_post
                     sigma_post = 1 / np.sqrt(prec_post)
                     phi[j] = np.random.normal(mu_post, sigma_post)
 
-            # Remove empty components
-            unique_c = np.unique(c)
-            if len(unique_c) < len(phi):
-                new_phi = [phi[j] for j in unique_c]
-                c_mapping = {uc: i for i, uc in enumerate(unique_c)}
-                c = np.array([c_mapping[ci] for ci in c])
-                phi = new_phi
+            # Remove empty components - only do this periodically to avoid constant relabeling
+            # This improves efficiency and reduces potential inconsistencies
+            if (iteration + 1) % 10 == 0 or iteration == n_iter + burn_in - 1:
+                unique_c = np.unique(c)
+                if len(unique_c) < len(phi):
+                    new_phi = [phi[j] for j in unique_c]
+                    c_mapping = {uc: i for i, uc in enumerate(unique_c)}
+                    c = np.array([c_mapping[ci] for ci in c])
+                    phi = new_phi
 
             theta = np.array([phi[ci] for ci in c])
 
@@ -107,8 +110,8 @@ class Algorithm5(BaseAlgorithm):
         theta_array = np.array(theta_samples)
         k_samples = np.array([len(np.unique(c_sample)) for c_sample in c_samples])
 
-        autocorr_k = self.compute_autocorr(k_samples, lag=1)
-        autocorr_theta1 = self.compute_autocorr(theta_array[:, 0], lag=1)
+        autocorr_k = self.compute_autocorr(k_samples)
+        autocorr_theta1 = self.compute_autocorr(theta_array[:, 0])
         time_per_iter = (end_time - start_time) / n_iter * 1000
 
         return MCMCResults(

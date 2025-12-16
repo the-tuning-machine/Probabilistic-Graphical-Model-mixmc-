@@ -293,28 +293,122 @@ Chi2
 Cov
 
 Avancer sur la recherche avec Théo
+	Se souvenir de sa version
+	Avancer sur ce que moi je veux faire
+		Comprendre comment est stoqué le contexte dans les GPU
+		Déterminer comment faire l'embedding positionnel une fois que l'on est groupé
+		Quand et comment faire collapse / uncollapse une section
+		Déterminer si je dois faire nécessairement de la diffusion ou pas ?
+		Déterminer comment décrire les catégories de manière native
 Rapport PGM
 	Bien restructurer: 15 min
-		On veut tout dans le dossier src/paper
-		Remonter la place de Distribution
-		On veut pouvoir avoir un graphique de l'évolution du temps (temps par itération * nb d'ité d'autocorr) pour avoir 2 samples iid en fonction de la dimension choisie
-		Clean tous les fichiers inutiles
-		Faire un fichier par algo
-	Faire un test avec une autre loi
-		Essayer sur des Dirichlet
-	Rédiger la partie expérience : 1h
-		Dire que l'on peut pense à générer des samples avec un processus de Diffusion
-			Donner l'équation que l'on voudrait
-			Dire que ce n'est pas fou car à priori pas beaucoup plus rapide car les calculs de MH sont très rapides même s'il en faut plusieurs pour avoir une bonne estimation
-			De plus on n'a aucune garantie dans notre cas
-		Cependant on peut aussi essayer de prédire directement les theta
-			Cela ne prédit pas le MAP
-			Mais cela devrait tendre vers le MAP à la limite lorsque le nb de samples tend vers inf
-			Donner l'architecture précise
-			Donner les paramètres d'entraînement
-			Donner les résultats et dire que cela était une mauvaise idée
-				Il peut il y avoir beaucoup de variance si on a peu de sample, si alpha est grand, si on est en grande dimension ou si les lois génératrices ont une grande variance (ce qui fait beaucoup de scénarii ou c'est dur)
-				Avec alpha petit alors cela revient à calculer une moyenne (et c'est clairement pas fou et très cher pour ce que c'est)
-				Dire que le temps de chauffe est en fait moins long que le temps d'entrainement
-				Dire qu'il nous faudrait une autre métrique
-			Donner le lien où l'on peut retrouver le code
+
+Faire une crypto
+	Comment faire pour le compte d'une entreprise ?
+		Une entreprise c'est un groupe d'humain chacun avec une part plus ou moins importante
+		Une entreprise à besoin d'argent pour payer les salaires des consciences, mais aussi les autres entitées (pour les ressources qu'elles fournissent)
+
+
+Traction: s'aligner
+	Nb de clients
+	CA
+Si je suis pris en stage aux US et que je peux continuer je continu avec eux, dans les entreprises suivantes en France
+	H
+	HF
+	Mistral
+	Kyutai
+Accélérateur: être pris dans un accélérateur d'ici Juin
+Faire un point d'étape en avant l'alternance de Mo
+
+
+
+Cet aprèm
+	AAICO
+		Choisir une manière collaborer
+		Avancer sur la théorie
+Samedi
+	GDA
+		Faire les slides
+		Regarder la dernière vidéo
+	Mathounes
+		Décrire précisement mathématiquement les classes d'équivalence de fonctions auxquelles il faut donner des proba
+		Essayer de trouver une formule consistante
+Dimanche
+	PGM
+		Finir le papier
+			Checker le pseudo code
+				Algo 1 et 8
+				Après avoir rappelé où étaient les erreurs pour les algo 1 à 8, checke si les autres algo (2 à 7) suivent bien le papier en faisant particulièrement attention aux endroits où l'on a retrouvé des erreurs (note qu'il peut il y avoir d'autres erreurs, c'est juste une piste de recherche)
+				Lancer les tests individuellement et comprendre pourquoi on n'a pas les mêmes résultats
+				Le but est d'avoir la même chose au delà du temps (qui évidement dépend de la machine, mais cela devrait être proportionnel sur tous les algo
+				Obtenir les mêmes résultats que dans le papier
+				Corriger les scaling laws si besoin et les lancer
+				Cleaner le projet
+				Ecrire un README propre
+				Rédiger la partie implémentation (dire que l'on a les mêmes résultats ou pas et dire d'où ça provient probablement)
+				Donner les résultats sur notre approche
+				Donner les résultats sur le scaling
+			Rédiger la conclusion
+			Raccourcir
+
+On n'obtient pas les mêmes
+
+
+Lundi
+	Clerko
+Mardi
+	Faire les TP de Fondement du Deep
+Mercredi
+	Faire les TP de Responsible ML
+	Réviser GDA
+Jeudi
+	Cours
+Vendredi
+	GDA
+
+
+
+Tous les graphes sont inclus dans le WKG ? Cela signifie qu'il faut tout stocker dans le WKG si les utilisateurs font des micro modifs
+	Soit on ne représente pas les nodes des graphes custom dans le WKG
+	Soit on les représente (mais il faut faire du transfer learning, car sinon on perd de l'info)
+	Soit on fait des classes d'équivalences de node (le transfer learning est direct, mais on discrétise de manière peu naturelle)
+	Soit on représente l'ensemble des tâches dans un espace de grande dimension puis l'on fait un flow ? (stochastique ?) avec les occurrences dans les WF entreprise
+		Une bonne idée serait de faire un embedded graph (graphe plongé), et on relie les nodes avec des edges
+		On n'est pas obligé de faire un embedded graph si on donne une métrique
+Les nodes du WKG sont des tasks
+	Chaque task à des inputs
+	Un process
+		algo
+			f_{theta, tau}(x)
+				theta : les paramètres du modèle, le language de programmation si c'est un code, le code sous forme de texte si c'est un code
+				tau : les instructions (prompt), les variables incrémentales (si on a un workflow qui compte)
+				x : les paramètres variables dans le prompt et propre à l'exécution en question
+		description sémantique
+	Des outputs
+
+Quels sont les évènements qui peuvent justifier d'une update
+	D'un workflow
+		OnOccurrence
+		
+		OnPeriodicUpdate
+		OnUserModification
+		OnLibraryUpdate
+		OnHardwareChange
+		OnUserFeedback
+	Du WKG
+		OnOccurrence
+		OnNewTechnique (archi, training recipe)
+		OnNewWorfklow
+		OnPeriodicUpdate
+		OnUserModification
+		OnLibraryUpdate
+		OnHardwareChange
+		OnUserFeedback
+	On peut aussi Update la métrique (est-ce que ça fait parti du WKG ??)
+	Est-ce que l'on update le WKG et c'est lui qui impact le WF ou le WF et c'est le WF qui impacte le WKG ?
+		Plutôt la seconde option, car si on a toutes les traces dans le KWG, alors de toute manière on a besoin de l'information du WKG pour faire une bonne update avec le max d'information transférable
+
+
+
+Le temps augmente d'itération augmente pour toutes les courbes et semble se stabiliser autour d'1s par itération, à l'exception de Algo8_m1 qui reste relativement basse avec 1ms/itération en dimension 1024.
+Attention ces résultats ne sont en aucun cas des résultats généraux, et ne représentent que le comportement des gaussiennes à variances fixées dans ce régime. L'autocorrélation pour k drop à 1 dans chacun des cas après une montée, cela semble indiquer qu'entre les dimensions 10 et 100 un phénomène mathématique des grandes dimensions semble surpasser un autre phénomène de croissance, rendant l'autocorrélation triviale. Finalement, le temps d'autocorrélation de theta_1, lui semble plateau à 100 itérations dès le passage en dimension 2. Contrairement à celle de k qui décroit, cela suggère plutôt que notre période de burn-in (200) et notre nombre d'itération (20000) est bien trop réduit pour ce que nécessite le problème. 

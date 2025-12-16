@@ -10,54 +10,37 @@ from multiprocessing import Pool, cpu_count
 from .runner import MCMCRunner
 
 
-def _process_single_dimension(args: Tuple) -> Tuple[int, Dict[str, float]]:
+def _process_single_algorithm(args: Tuple) -> Tuple[str, float, object]:
     """
-    Process a single dimension (helper function for parallel execution)
+    Process a single algorithm for a given dimension (helper function for parallel execution)
 
     Args:
-        args: Tuple of (dim, algorithms, n_iter, burn_in, alpha, sigma, mu0, sigma0,
-                       autocorr_variable, results_dir, random_seed)
+        args: Tuple of (algo_name, data, alpha, sigma, mu0, sigma0,
+                       n_iter, burn_in, autocorr_variable, results_dir)
 
     Returns:
-        Tuple of (dimension, dict of {algorithm: time_2_iid})
+        Tuple of (algorithm_name, time_2_iid, mcmc_results)
     """
-    (dim, algorithms, n_iter, burn_in, alpha, sigma, mu0, sigma0,
-     autocorr_variable, results_dir, random_seed) = args
+    (algo_name, data, alpha, sigma, mu0, sigma0,
+     n_iter, burn_in, autocorr_variable, results_dir) = args
 
-    # Set seed for this process
-    np.random.seed(random_seed + dim)
+    try:
+        # Create runner for this algorithm
+        runner = MCMCRunner(data, alpha, sigma, mu0, sigma0, results_dir)
 
-    print(f"\n{'='*80}")
-    print(f"Testing dimension: {dim}")
-    print(f"{'='*80}")
+        # Run only this algorithm
+        results = runner.run_algorithm(algo_name, n_iter, burn_in)
 
-    # Generate synthetic data
-    n_half = dim // 2
-    data = np.concatenate([
-        np.random.normal(-1.0, 0.3, n_half),
-        np.random.normal(0.5, 0.3, dim - n_half)
-    ])
-    np.random.shuffle(data)
+        # Compute time for 2 i.i.d. samples
+        time_2_iid = runner.compute_iid_time(algo_name, autocorr_variable)
 
-    # Run algorithms
-    runner = MCMCRunner(data, alpha, sigma, mu0, sigma0, results_dir)
-    runner.run_all(n_iter, burn_in, algorithms)
+        print(f"  {algo_name}: {time_2_iid:.2f} ms for 2 i.i.d. samples")
 
-    # Compute time for 2 i.i.d. samples
-    iid_times_dim = {}
-    for algo in algorithms:
-        try:
-            time_2_iid = runner.compute_iid_time(algo, autocorr_variable)
-            iid_times_dim[algo] = time_2_iid
-            print(f"{algo}: {time_2_iid:.2f} ms for 2 i.i.d. samples")
-        except Exception as e:
-            print(f"Error computing i.i.d. time for {algo}: {e}")
-            iid_times_dim[algo] = np.nan
+        return algo_name, time_2_iid, results
 
-    # Save results for this dimension
-    runner.save_results(f'results_dim{dim}.pkl')
-
-    return dim, iid_times_dim
+    except Exception as e:
+        print(f"  Error with {algo_name}: {e}")
+        return algo_name, np.nan, None
 
 
 def plot_autocorr_time_vs_dimension(
@@ -104,36 +87,56 @@ def plot_autocorr_time_vs_dimension(
     else:
         n_processes = min(n_jobs, cpu_count())
 
-    print(f"\nUsing {n_processes} parallel processes")
+    print(f"\nUsing {n_processes} parallel processes (algorithms in parallel, dimensions sequential)")
+    print(f"Processing {len(dimensions)} dimensions × {len(algorithms)} algorithms")
 
-    # Prepare arguments for each dimension
-    args_list = [
-        (dim, algorithms, n_iter, burn_in, alpha, sigma, mu0, sigma0,
-         autocorr_variable, results_dir, random_seed)
-        for dim in dimensions
-    ]
-
-    # Run in parallel or sequential
-    if n_processes > 1:
-        with Pool(processes=n_processes) as pool:
-            results_list = pool.map(_process_single_dimension, args_list)
-    else:
-        results_list = [_process_single_dimension(args) for args in args_list]
-
-    # Reorganize results
+    # Store results
     iid_times = {algo: [] for algo in algorithms}
-    dimension_order = []
 
-    for dim, iid_times_dim in results_list:
-        dimension_order.append(dim)
-        for algo in algorithms:
-            iid_times[algo].append(iid_times_dim.get(algo, np.nan))
+    # Process each dimension SEQUENTIALLY
+    for dim_idx, dim in enumerate(dimensions):
+        print(f"\n{'='*80}")
+        print(f"[{dim_idx+1}/{len(dimensions)}] Processing dimension: {dim}")
+        print(f"{'='*80}")
 
-    # Sort by dimension
-    sorted_indices = np.argsort(dimension_order)
-    dimensions_sorted = [dimension_order[i] for i in sorted_indices]
-    for algo in algorithms:
-        iid_times[algo] = [iid_times[algo][i] for i in sorted_indices]
+        # Set seed for this dimension
+        np.random.seed(random_seed + dim)
+
+        # Generate synthetic data
+        n_half = dim // 2
+        data = np.concatenate([
+            np.random.normal(-1.0, 0.3, n_half),
+            np.random.normal(0.5, 0.3, dim - n_half)
+        ])
+        np.random.shuffle(data)
+
+        # Prepare arguments for each algorithm (to run in parallel)
+        args_list = [
+            (algo, data, alpha, sigma, mu0, sigma0,
+             n_iter, burn_in, autocorr_variable, results_dir)
+            for algo in algorithms
+        ]
+
+        # Run algorithms IN PARALLEL for this dimension
+        if n_processes > 1:
+            with Pool(processes=n_processes) as pool:
+                algo_results = pool.map(_process_single_algorithm, args_list)
+        else:
+            algo_results = [_process_single_algorithm(args) for args in args_list]
+
+        # Store results for this dimension
+        print(f"\n  Saving results for dimension {dim}...")
+        runner = MCMCRunner(data, alpha, sigma, mu0, sigma0, results_dir)
+
+        for algo_name, time_2_iid, mcmc_results in algo_results:
+            iid_times[algo_name].append(time_2_iid)
+
+            # Store MCMC results in runner for saving
+            if mcmc_results is not None:
+                runner.results[algo_name] = mcmc_results
+
+        # Save all results for this dimension
+        runner.save_results(f'results_dim{dim}.pkl')
 
     # Create plot
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -142,7 +145,7 @@ def plot_autocorr_time_vs_dimension(
         times = np.array(iid_times[algo])
         valid = ~np.isnan(times)
         if valid.any():
-            ax.plot(np.array(dimensions_sorted)[valid], times[valid],
+            ax.plot(np.array(dimensions)[valid], times[valid],
                    marker='o', label=algo, linewidth=2, markersize=6)
 
     ax.set_xlabel('Data Dimension (n)', fontsize=12)

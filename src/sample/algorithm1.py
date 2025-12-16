@@ -1,124 +1,172 @@
 """
-Algorithm 1: Basic Gibbs Sampling for Dirichlet Process Mixture
+Algorithm 1: Basic Gibbs sampling from θ_i | θ_{-i}, y_i
+Implementation of Neal (1998) Algorithm 1
 """
 
 import numpy as np
-from scipy import stats
 import time
-from .base import MCMCResults
+from scipy import stats
+from typing import List, Tuple, Optional
+from .base import DirichletProcessMixture, MCMCResults
 from .base_algorithm import BaseAlgorithm
 
 
 class Algorithm1(BaseAlgorithm):
     """
-    Algorithm 1: Basic Gibbs sampling for Dirichlet Process Mixture
-
-    At each iteration:
-    1. For i = 1,...,n: Update c_i by sampling from full conditional
-    2. For each unique c: Update φ_c by sampling from posterior
+    Algorithm 1: Basic Gibbs sampling from θ_i | θ_{-i}, y_i
+    State consists of θ_1,...,θ_n only
+    
+    This algorithm requires conjugacy (F and G0 must be conjugate)
     """
 
-    def run(self, n_iter: int = 1000, burn_in: int = 100) -> MCMCResults:
-        """Run Algorithm 1"""
-        c, phi, theta = self.initialize()
+    def initialize_theta(self) -> np.ndarray:
+        """Initialize θ by sampling from G0, returns shape (n, d)"""
+        return np.array([self.model.sample_prior() for _ in range(self.n)])
 
-        # Storage for samples
-        c_samples = []
+    def extract_clusters(self, theta: np.ndarray, tol: float = 1e-6) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Extract cluster assignments from theta values (vectors)
+
+        Args:
+            theta: Array of theta values, shape (n, d)
+            tol: Tolerance for considering two vectors equal (Euclidean distance)
+
+        Returns:
+            c: Cluster assignments (0-indexed)
+            phi: Unique cluster parameters, shape (k, d) where k is number of clusters
+        """
+        # Use hierarchical clustering based on Euclidean distance
+        # For efficiency, we'll use a simple greedy approach
+        c = -np.ones(self.n, dtype=int)
+        phi_list = []
+
+        for i in range(self.n):
+            # Check if theta[i] is close to any existing cluster center
+            assigned = False
+            for cluster_id, phi_k in enumerate(phi_list):
+                dist = np.linalg.norm(theta[i] - phi_k)
+                if dist < tol:
+                    c[i] = cluster_id
+                    assigned = True
+                    break
+
+            if not assigned:
+                # Create new cluster
+                c[i] = len(phi_list)
+                phi_list.append(theta[i].copy())
+
+        phi = np.array(phi_list)  # Shape (k, d)
+        return c, phi
+
+    def run(self, n_iter: int = 1000, burn_in: int = 100, 
+            tol: float = 1e-6, seed: Optional[int] = None) -> MCMCResults:
+        """
+        Execute Algorithm 1
+        
+        Args:
+            n_iter: Number of iterations after burn-in
+            burn_in: Number of burn-in iterations
+            tol: Tolerance for cluster identification
+            seed: Random seed for reproducibility
+            
+        Returns:
+            MCMCResults containing samples and statistics
+        """
+        if seed is not None:
+            np.random.seed(seed)
+        
+        # Initialize
+        theta = self.initialize_theta()
+        
+        # Storage
         theta_samples = []
-
+        c_samples = []
+        k_samples = []
+        
         start_time = time.time()
-
+        
         for iteration in range(n_iter + burn_in):
-            # Update each c_i
-            for i in range(self.n):
-                # Remove observation i from its current component
-                old_c = c[i]
-                c_temp = np.delete(c, i)
+            # Update each θ_i in random order (improves mixing)
+            indices = np.random.permutation(self.n)
+            
+            for i in indices:
+                # Get θ_{-i} (all except i), shape ((n-1), d)
+                theta_minus_i = np.delete(theta, i, axis=0)
 
-                # Count components (excluding i)
-                unique_c, counts = np.unique(c_temp, return_counts=True)
-                n_minus_i = {uc: count for uc, count in zip(unique_c, counts)}
+                # Calculate LOG weights for existing components
+                # Note: Use ALL θ_j (j ≠ i), not just unique values
+                log_weights = []
+                values = []
 
-                # Compute probabilities for existing components
-                probs = []
-                components = []
+                for theta_j in theta_minus_i:
+                    # log(w_j) = log F(y_i | θ_j)
+                    log_w = self.model.log_likelihood(self.y[i], theta_j)
+                    log_weights.append(log_w)
+                    values.append(theta_j)  # Keep the actual vector
 
-                for uc in unique_c:
-                    if uc in n_minus_i:
-                        count = n_minus_i[uc]
-                        # Probability proportional to: count * F(y_i | φ_c)
-                        prob = count * self.model.likelihood(self.y[i], phi[uc])
-                        probs.append(prob)
-                        components.append(uc)
+                # Log weight for new component: log(w_new) = log(α) + log(m(y_i))
+                log_m_yi = np.sum(stats.norm.logpdf(
+                    self.y[i],
+                    loc=self.model.mu0,
+                    scale=np.sqrt(self.model.sigma2 + self.model.sigma02)
+                ))
+                log_w_new = np.log(self.alpha) + log_m_yi
+                log_weights.append(log_w_new)
+                values.append(None)  # Marker for new component
 
-                # Probability for new component
-                # Sample φ_new ~ G_0 and compute α * ∫ F(y_i | φ) dG_0(φ)
-                # For conjugate case: α * F_marginal(y_i)
-                mu_post, sigma_post = self.model.posterior_theta(self.y[i])
-                # Marginal likelihood: N(y_i; μ_0, σ² + σ_0²)
-                sigma_marg = np.sqrt(self.model.sigma2 + self.model.sigma02)
-                prob_new = self.alpha * stats.norm.pdf(self.y[i], self.model.mu0, sigma_marg)
-                probs.append(prob_new)
-                components.append(len(phi))  # New component index
+                # Convert to numpy array
+                log_weights = np.array(log_weights, dtype=float)
 
-                # Normalize probabilities
-                probs = np.array(probs)
-                probs /= probs.sum()
+                # Normalize in log-space (subtract max for numerical stability)
+                max_log_weight = np.max(log_weights)
+                log_weights_normalized = log_weights - max_log_weight
+                weights = np.exp(log_weights_normalized)
 
-                # Sample new component
-                new_c = np.random.choice(components, p=probs)
-                c[i] = new_c
+                # Handle numerical issues
+                if np.isnan(weights).any() or weights.sum() == 0:
+                    weights = np.ones_like(weights) / len(weights)
+                else:
+                    weights = weights / weights.sum()
 
-                # If new component, create new phi
-                if new_c == len(phi):
-                    phi.append(self.model.sample_posterior_theta(self.y[i]))
+                # Sample new θ_i
+                chosen_idx = np.random.choice(len(weights), p=weights)
 
-            # Update phi for each component
-            unique_c = np.unique(c)
-            new_phi = []
-            c_mapping = {}
-            for new_idx, uc in enumerate(unique_c):
-                mask = (c == uc)
-                y_c = self.y[mask]
-                # Sample from posterior given all y in component
-                # For normal-normal conjugate:
-                n_c = len(y_c)
-                prec_post = n_c / self.model.sigma2 + 1 / self.model.sigma02
-                mu_post = (y_c.sum() / self.model.sigma2 + self.model.mu0 / self.model.sigma02) / prec_post
-                sigma_post = 1 / np.sqrt(prec_post)
-                new_phi.append(np.random.normal(mu_post, sigma_post))
-                c_mapping[uc] = new_idx
-
-            # Relabel components
-            c = np.array([c_mapping[ci] for ci in c])
-            phi = new_phi
-
-            # Update theta
-            theta = np.array([phi[ci] for ci in c])
-
-            # Store samples after burn-in
+                if values[chosen_idx] is None:
+                    # Sample from H_i (posterior based on y_i alone)
+                    theta[i] = self.model.sample_from_H(self.y[i])
+                else:
+                    # Reuse existing θ_j (vector)
+                    theta[i] = values[chosen_idx].copy()
+            
+            # Store after burn-in
             if iteration >= burn_in:
-                c_samples.append(c.copy())
                 theta_samples.append(theta.copy())
-
+                
+                # Extract cluster assignments
+                c, phi = self.extract_clusters(theta, tol)
+                c_samples.append(c.copy())
+                k_samples.append(len(phi))
+        
         end_time = time.time()
-
-        # Compute statistics
-        c_array = np.array(c_samples)
+        
+        # Convert to arrays
         theta_array = np.array(theta_samples)
-
-        # Number of distinct components
-        k_samples = np.array([len(np.unique(c_sample)) for c_sample in c_samples])
-
-        # Autocorrelations
-        autocorr_k = self.compute_autocorr(k_samples, lag=1)
-        autocorr_theta1 = self.compute_autocorr(theta_array[:, 0], lag=1)
-
-        time_per_iter = (end_time - start_time) / n_iter * 1000  # milliseconds
-
+        c_array = np.array(c_samples)
+        
+        # Compute statistics
+        k_array = np.array(k_samples)
+        
+        autocorr_k = self.compute_autocorr(k_array)
+        autocorr_theta1 = self.compute_autocorr(theta_array[:, 0])
+        
+        time_per_iter = (end_time - start_time) / n_iter * 1000  # ms
+        
+        # Get phi from last iteration
+        _, phi_last = self.extract_clusters(theta, tol)
+        
         return MCMCResults(
             c=c_array,
-            phi=np.array(phi),
+            phi=phi_last,
             theta=theta_array,
             time_per_iteration=time_per_iter,
             autocorr_k=autocorr_k,

@@ -9,12 +9,7 @@ from pathlib import Path
 from typing import Dict, Optional, List
 from .base import DirichletProcessMixture, MCMCResults
 from .algorithm1 import Algorithm1
-from .algorithm2 import Algorithm2
-from .algorithm3 import Algorithm3
-from .algorithm4 import Algorithm4
 from .algorithm5 import Algorithm5
-from .algorithm6 import Algorithm6
-from .algorithm7 import Algorithm7
 from .algorithm8 import Algorithm8
 
 
@@ -23,12 +18,7 @@ class MCMCRunner:
 
     ALGORITHMS = {
         'Alg1': Algorithm1,
-        'Alg2': Algorithm2,
-        'Alg3': Algorithm3,
-        'Alg4': Algorithm4,
         'Alg5': Algorithm5,
-        'Alg6': Algorithm6,
-        'Alg7': Algorithm7,
         'Alg8_m1': (Algorithm8, {'m': 1}),
         'Alg8_m2': (Algorithm8, {'m': 2}),
         'Alg8_m30': (Algorithm8, {'m': 30}),
