@@ -410,5 +410,30 @@ Quels sont les évènements qui peuvent justifier d'une update
 
 
 
-Le temps augmente d'itération augmente pour toutes les courbes et semble se stabiliser autour d'1s par itération, à l'exception de Algo8_m1 qui reste relativement basse avec 1ms/itération en dimension 1024.
-Attention ces résultats ne sont en aucun cas des résultats généraux, et ne représentent que le comportement des gaussiennes à variances fixées dans ce régime. L'autocorrélation pour k drop à 1 dans chacun des cas après une montée, cela semble indiquer qu'entre les dimensions 10 et 100 un phénomène mathématique des grandes dimensions semble surpasser un autre phénomène de croissance, rendant l'autocorrélation triviale. Finalement, le temps d'autocorrélation de theta_1, lui semble plateau à 100 itérations dès le passage en dimension 2. Contrairement à celle de k qui décroit, cela suggère plutôt que notre période de burn-in (200) et notre nombre d'itération (20000) est bien trop réduit pour ce que nécessite le problème. 
+Le temps augmente d'itération augmente pour toutes les courbes et semble se stabiliser autour d'1s par itération, à l'exception de Algo8_m1 qui reste relativement basse avec 1ms/itération en dimension 1024. Attention ces résultats ne sont en aucun cas des résultats généraux, et ne représentent que le comportement des gaussiennes à variances fixées dans ce régime. L'autocorrélation pour k drop à 1 dans chacun des cas après une montée, cela semble indiquer qu'entre les dimensions 10 et 100 un phénomène mathématique des grandes dimensions semble surpasser un autre phénomène de croissance, rendant l'autocorrélation triviale. Finalement, le temps d'autocorrélation de theta_1, lui semble plateau à 100 itérations dès le passage en dimension 2. Contrairement à celle de k qui décroit, cela suggère plutôt que notre période de burn-in (200) et notre nombre d'itération (20000) est bien trop réduit pour ce que nécessite le problème. Il serait donc nécessaire de relancer des calculs sur des temps plus long afin d'obtenir des résultats de confiance.
+
+
+PGM (matin)
+	Changer les valeurs pour l'analyse dimensionnelle
+	Demander à Gemini de faire des commentaires plus humains, là c'est beaucoup trop machinal avec des caractères impossibles à taper sur le clavier, ... (pareil pour les print("\n" + "=" * 80), ...)
+	Gemini refaire le README avec seulement
+		Présentation rapide (rapport PGM sur "Markov Chain Sampling Methods for Dirichlet Process Mixture Models" de Neal, R. M. (1998
+		Installation
+		3 scripts que l'on peut lancer
+			run_dim...
+			run_paper...
+			-m src.estimate.main
+		Algorithmes : 1, 5 et 8
+	Check le git
+	Check le papier
+	Faire l'envoyer sous le bon format!!!!!!!!
+TP3 (matin + aprèm : 3h)
+	Faire les exo avec Claude
+	Demander les slides au prof
+	Check qu'il n'y ait rien d'obvious entre l'original et la version finale et dans ce qui a été écrit
+GDA (aprèm : 3h)
+	Regarder la dernière vidéo
+	Reprendre les slides et demander à DeepSeek de donner le contenu textuel important (qui pourrait tomber à l'exam)
+	Reprendre les TP et demander pareil avec DeepSeek
+	Faire un point sur UMAP
+	Envoyer un mail au prof

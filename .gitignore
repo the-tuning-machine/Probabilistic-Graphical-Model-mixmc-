@@ -7,3 +7,5 @@ results/
 
 *.pt
 *.pdf
+*.json
+*.txt
